@@ -12,7 +12,8 @@ from matplotlib.patches import Circle, FancyBboxPatch, Rectangle  # noqa: E402
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parents[1]))
 
-from toddler.attention import attention, hint_attention  # noqa: E402
+from toddler.attention import STREAM, attention, hint_attention  # noqa: E402
+from toddler.block import NEURONS, feed_forward, hint_feed_forward  # noqa: E402
 from toddler.bpe import BPETokenizer  # noqa: E402
 from toddler.data import CORPUS  # noqa: E402
 from toddler.embeddings import COLUMNS, toddler_table  # noqa: E402
@@ -564,6 +565,297 @@ def attention_pattern():
     save(fig, "04_attention_pattern.png")
 
 
+def block_diagram():
+    fig, ax = canvas(14.4, 5.6, bottom=-0.3)
+    y = 1.5
+    ax.add_patch(FancyBboxPatch((0.4, y - 0.18), 13.3, 0.36, boxstyle="round,pad=0,rounding_size=0.18",
+                                facecolor="#e5e7eb", edgecolor="none"))
+    arrow(ax, (13.5, y), (14.15, y), color=MUTED, lw=2.5)
+    text(ax, 0.4, 0.05, "each token's vector (10 numbers): the residual stream", size=10.5, color=MUTED, ha="left")
+    text(ax, 14.1, 0.05, "to the output (Step 6)", size=10.5, color=MUTED, ha="right")
+    for (left, title, note), plus in zip([(2.0, "Attention", "looks back at earlier tokens"),
+                                          (7.9, "Feed-forward", "40 neurons, each token alone")], (5.6, 11.5)):
+        box(ax, left, 2.7, 3.2, 1.3, "violet")
+        text(ax, left + 1.6, 3.55, title, size=12.5, bold=True)
+        text(ax, left + 1.6, 3.1, note, size=9.5, color=MUTED)
+        arrow(ax, (left + 0.4, y + 0.18), (left + 0.4, 2.7), color="#7c3aed", lw=1.6)
+        text(ax, left + 0.5, 2.15, "reads", size=9.5, color="#7c3aed", ha="left")
+        ax.plot([left + 3.2, plus, plus], [3.35, 3.35, y + 0.42], color="#7c3aed", lw=1.6)
+        arrow(ax, (plus, y + 0.6), (plus, y + 0.34), color="#7c3aed", lw=1.6)
+        ax.add_patch(Circle((plus, y), 0.3, facecolor="white", edgecolor="#7c3aed", lw=2, zorder=3))
+        text(ax, plus, y, "+", size=16, bold=True, color="#7c3aed", zorder=4)
+        text(ax, plus + 0.4, 2.2, "adds its result", size=9.5, color="#7c3aed", ha="left")
+    ax.add_patch(FancyBboxPatch((1.5, 0.45), 11.0, 4.0, boxstyle="round,pad=0,rounding_size=0.25", fill=False,
+                                edgecolor="#9ca3af", lw=1.4, ls=(0, (5, 4))))
+    text(ax, 7.0, 4.95, "one transformer block: each part reads the stream and adds its result to it", size=12,
+         bold=True)
+    save(fig, "05_block.png")
+
+
+def want_through_block():
+    ids = TOK.encode(CORPUS[0])
+    inputs = with_positions(TABLE[ids])
+    added, _ = attention(inputs, **hint_attention())
+    stream = inputs + added
+    thinking = feed_forward(stream, **hint_feed_forward())
+    rows = [("_want", inputs[5]), ("+ attention", added[5]), ("+ feed-forward", thinking[5]),
+            ("= final vector", stream[5] + thinking[5])]
+    fig, ax = canvas(13.4, 4.4, bottom=0.3)
+    x0, width, height = 3.4, 0.8, 0.52
+    xs = [x0 + width * i + (0.3 if i >= 8 else 0) for i in range(10)]
+    for x, name in zip(xs, STREAM):
+        text(ax, x + width / 2, 3.95, name, size=10, color=MUTED)
+    for r, (label, values) in enumerate(rows):
+        y = 3.3 - 0.7 * r
+        text(ax, x0 - 0.25, y, label, size=11.5, mono=True, ha="right", bold=r == 3)
+        for x, value in zip(xs, values):
+            fill, ink = signed_colors(value)
+            ax.add_patch(Rectangle((x + 0.03, y - height / 2), width - 0.06, height, facecolor=fill, edgecolor="none"))
+            text(ax, x + width / 2, y, number(value), size=10.5, color=ink)
+    ax.add_patch(Rectangle((xs[0] - 0.06, 3.3 - 2.1 - 0.36), xs[-1] + width - xs[0] + 0.12, 0.72, fill=False,
+                           edgecolor="#dc2626", lw=2))
+    text(ax, xs[-1] + width + 0.25, 1.2, "food, and surely\nnot a feeling:\nlooks like _milk", size=10.5,
+         color="#dc2626", ha="left", bold=True)
+    save(fig, "05_want_through_block.png")
+
+
+POSITIVE, NEGATIVE, FAINT = "#2563eb", "#ea580c", "#e5e7eb"
+
+
+def stream_after_attention():
+    """The 8 vectors of our sentence after attention (the stream S of Step 5), and the feed-forward hint."""
+    inputs = with_positions(TABLE[TOK.encode(CORPUS[0])])
+    added, _ = attention(inputs, **hint_attention())
+    return inputs + added, hint_feed_forward()
+
+
+def relu_plot():
+    fig, ax = plt.subplots(figsize=(6.8, 3.9))
+    ax.axvspan(-3, 0, color="#f3f4f6", zorder=0)
+    ax.axvspan(0, 3, color="#f5f3ff", zorder=0)
+    ax.axhline(0, color="#9ca3af", lw=1, zorder=1)
+    ax.axvline(0, color="#9ca3af", lw=1, zorder=1)
+    xs = np.linspace(-3, 3, 301)
+    ax.plot(xs, np.maximum(xs, 0), color="#7c3aed", lw=3, zorder=2)
+    for x, (dx, dy, ha) in {-2: (0, -0.38, "center"), -0.29: (-0.12, 0.3, "right"), 0.5: (0.14, -0.22, "left"),
+                            1: (-0.14, 0.24, "right"), 2: (-0.14, 0.24, "right")}.items():
+        y = max(x, 0)
+        ax.plot(x, y, "o", color=INK, ms=6, zorder=3)
+        ax.text(x + dx, y + dy, f"{number(x)} → {number(y)}", ha=ha, va="center", fontsize=10, family=MONO)
+    ax.text(-1.5, 2.6, "silent: ReLU gives 0", ha="center", fontsize=11, color=MUTED, weight="bold")
+    ax.text(1.5, 2.6, "fires: ReLU keeps the number", ha="center", fontsize=11, color="#7c3aed", weight="bold")
+    ax.set_xlim(-3, 3)
+    ax.set_ylim(-0.7, 2.95)
+    ax.set_xlabel("z: what the neuron reads (bias included)", fontsize=10.5)
+    ax.set_ylabel("ReLU(z)", fontsize=10.5)
+    ax.set_title("ReLU(z) = the bigger of z and 0", fontsize=12)
+    for side in ("top", "right"):
+        ax.spines[side].set_visible(False)
+    save(fig, "05_relu.png")
+
+
+def sum_badge(ax, x, y, radius=0.2, size=10):
+    """The Σ of an output unit (layer 2 of the feed-forward layer): where its links arrive and are added up."""
+    ax.add_patch(Circle((x, y), radius, facecolor="white", edgecolor="#7c3aed", lw=1.5, zorder=5))
+    text(ax, x, y, "Σ", size=size, bold=True, color="#7c3aed", zorder=6)
+
+
+def one_neuron():
+    """Neuron 1 ("I, at the start") at the first _I: the neuron (layer 1), the 10 output units (layer 2), the add."""
+    stream, ff = stream_after_attention()
+    values, reads, bias, writes = stream[0], ff["W1"][:, 0], ff["b1"][0], ff["W2"][0]
+    total = values @ reads + bias
+    y_out = max(total, 0.0)
+    outputs = y_out * writes
+    fig, ax = canvas(18.4, 10.0, bottom=0.25)
+    ys = [7.05 - 0.56 * i for i in range(len(STREAM))]
+    cy = float(np.mean(ys))
+    cell_w, cell_h, x_in, x_new = 0.95, 0.44, 1.2, 16.35
+    top, bottom = 8.45, 1.05
+    n_left, n_right, cx, radius, relu_left, relu_right = 3.9, 9.7, 5.3, 0.72, 6.95, 8.6
+    o_left, o_right, x_unit, unit_w = 11.65, 15.25, 12.4, 2.05
+
+    def cells(x, numbers, labels_left):
+        for y, name, value in zip(ys, STREAM, numbers):
+            text(ax, x - 0.15 if labels_left else x + cell_w + 0.15, y, name, size=11.5, mono=True, color=MUTED,
+                 ha="right" if labels_left else "left")
+            fill, ink = signed_colors(value)
+            ax.add_patch(Rectangle((x, y - cell_h / 2), cell_w, cell_h, facecolor=fill, edgecolor="none", zorder=3))
+            text(ax, x + cell_w / 2, y, number(value), size=12, color=ink, zorder=4)
+
+    def link(start, end, weight):
+        strong = abs(weight) > 1e-9
+        ax.plot(*zip(start, end), color=(POSITIVE if weight > 0 else NEGATIVE) if strong else FAINT,
+                lw=2.6 if strong else 1, zorder=2 if strong else 1)
+
+    def header(x, title, subtitle, mono=False):
+        text(ax, x, 8.05, title, size=12.5, bold=True)
+        text(ax, x, 7.65, subtitle, size=11, color=MUTED, mono=mono)
+
+    for left, right in [(n_left, n_right), (o_left, o_right)]:
+        ax.add_patch(FancyBboxPatch((left, bottom), right - left, top - bottom, fill=False, edgecolor="#9ca3af",
+                                    boxstyle="round,pad=0,rounding_size=0.25", lw=1.4, ls=(0, (5, 4))))
+    header(x_in + cell_w / 2, "_I (#1) in the stream", "x: its 10 numbers")
+    header((n_left + n_right) / 2, "layer 1: one neuron (1 of 40)", '"I, at the start": y = ReLU(read · x + bias)',
+           mono=True)
+    header((o_left + o_right) / 2, "3. layer 2: output units", "one per column: Σ, no ReLU")
+    header(x_new + cell_w / 2, "4. add", "x + outputs")
+    cells(x_in, values, labels_left=True)
+
+    # layer 1: the neuron reads x with its read column, adds its bias, and ReLU gives its output y
+    for y, weight in zip(ys, reads):
+        link((x_in + cell_w, y), (cx, cy), weight)
+        if abs(weight) > 1e-9:
+            t = 0.36
+            text(ax, x_in + cell_w + t * (cx - x_in - cell_w), y + t * (cy - y) + 0.27, f"× {number(weight)}",
+                 size=13, bold=True, color=POSITIVE)
+    text(ax, 3.02, 7.3, "read column", size=11.5, bold=True, color="#7c3aed")
+    text(ax, 3.0, cy + 0.05, "× 0: the other\n8 columns are\nignored", size=10.5, color=MUTED, zorder=3,
+         bbox=dict(facecolor="white", edgecolor="none", pad=1.5))
+    ax.add_patch(Circle((cx, cy), radius, facecolor="#ede9fe", edgecolor="#7c3aed", lw=2.2, zorder=5))
+    text(ax, cx, cy, "Σ", size=26, bold=True, color="#7c3aed", zorder=6)
+    text(ax, cx, cy + 1.1, "1. read", size=13, bold=True, color="#7c3aed")
+    chip(ax, cx, cy - 1.6, f"bias {number(bias)}", 1.7, h=0.52, color="orange", size=12, bold=True)
+    arrow(ax, (cx, cy - 1.34), (cx, cy - radius), color=NEGATIVE, lw=1.8)
+    arrow(ax, (cx + radius, cy), (relu_left, cy), color=INK, lw=1.8)
+    text(ax, (cx + radius + relu_left) / 2, cy + 0.32, f"z = {number(total)}", size=13.5, bold=True)
+    box(ax, relu_left, cy - 0.7, relu_right - relu_left, 1.4, "violet")
+    knee = (relu_left + relu_right) / 2
+    ax.plot([relu_left + 0.25, knee, relu_right - 0.25], [cy - 0.38, cy - 0.38, cy + 0.46], color="#7c3aed", lw=2.4,
+            zorder=4)
+    text(ax, knee, cy + 1.1, "2. ReLU", size=13, bold=True, color="#7c3aed")
+    text(ax, knee, cy - 1.05, f"z = {number(total)} > 0: it fires", size=12, bold=True, color="#7c3aed")
+    arrow(ax, (relu_right, cy), (n_right - 0.15, cy), color=INK, lw=1.8)
+    ax.add_patch(Circle((n_right, cy), 0.15, color="#7c3aed", zorder=6))
+    text(ax, (relu_right + n_right) / 2, cy + 0.36, f"y = {number(y_out)}", size=13.5, bold=True, color="#7c3aed")
+    text(ax, (n_left + n_right) / 2, 1.5, f"y = ReLU(1·1 (me) + 1·1 (px) − 1) = {number(y_out)}", size=12, mono=True)
+
+    # layer 2: y travels along the 10 links of the write row, and each output unit adds up what arrives
+    for y, weight in zip(ys, writes):
+        link((n_right, cy), (x_unit, y), weight)
+    for rank, j in enumerate(j for j, weight in enumerate(writes) if abs(weight) > 1e-9):
+        side, lx = (1 if rank == 0 else -1), 10.9
+        ly = cy + (lx - n_right) / (x_unit - n_right) * (ys[j] - cy) + 0.3 * side
+        text(ax, lx, ly, f"× {'+' if writes[j] > 0 else ''}{number(writes[j])}", size=13, bold=True, zorder=4,
+             color=POSITIVE if writes[j] > 0 else NEGATIVE, bbox=dict(facecolor="white", edgecolor="none", pad=1))
+    text(ax, (n_right + o_left) / 2, 7.65, "write row", size=11.5, bold=True, color="#7c3aed")
+    text(ax, (n_right + o_left) / 2, 7.3, "its 10 links", size=10.5, color="#7c3aed")
+    for y, name, value in zip(ys, STREAM, outputs):
+        color = "gray" if abs(value) < 1e-9 else "blue" if value > 0 else "orange"
+        box(ax, x_unit, y - cell_h / 2, unit_w, cell_h, color, lw=1.3, radius=0.08)
+        sum_badge(ax, x_unit, y, radius=0.19, size=9)
+        text(ax, x_unit + unit_w / 2 + 0.12, y, f"{name} {number(value)}", size=11.5, mono=True,
+             color=MUTED if abs(value) < 1e-9 else INK, zorder=4)
+    text(ax, (o_left + o_right) / 2, 1.5, "+ links from the 39 other\nneurons, silent here (y = 0)", size=10.5,
+         color=MUTED)
+
+    # the add: x itself goes around both layers (the residual stream), and the outputs are added to it
+    for y in ys:
+        arrow(ax, (x_unit + unit_w + 0.05, y), (x_new - 0.06, y), color="#cbd5e1", lw=1.2, head=8)
+    cells(x_new, values + outputs, labels_left=False)
+    bypass = 9.35
+    ax.plot([x_in + cell_w / 2] * 2 + [x_new + cell_w / 2], [8.35, bypass, bypass], color=MUTED, lw=1.6)
+    arrow(ax, (x_new + cell_w / 2, bypass), (x_new + cell_w / 2, 8.35), color=MUTED, lw=1.6)
+    text(ax, (x_in + x_new + cell_w) / 2, bypass, "x itself goes around both layers, and the outputs are added to it: "
+         "the residual stream (5.1)", size=11, color=MUTED, bbox=dict(facecolor="white", edgecolor="none", pad=2))
+    text(ax, 0.3, 0.6, "the new _I: me 1 − 1 = 0 and be 0 + 1 = 1, the rest unchanged: it looks like _am, the token "
+         "that comes next", size=13, bold=True, color="#dc2626", ha="left")
+    save(fig, "05_one_neuron.png")
+
+
+def layer_diagram(name, token=None, caption=()):
+    """The feed-forward layer as a network: the 10 numbers of a token, layer 1 (the 7 hint neurons) and layer 2 (the
+    10 output units, one per column). Without a token: the wiring (W1 and W2). With a token: the numbers that flow."""
+    stream, ff = stream_after_attention()
+    W1, b1, W2 = ff["W1"], ff["b1"], ff["W2"]
+    used = len(NEURONS)
+    if token is not None:
+        values = stream[token]
+        reads = values @ W1 + b1
+        fired = np.maximum(reads, 0)
+        written = fired @ W2
+    fig, ax = canvas(17.4, 11.4, bottom=-0.1 - 0.5 * len(caption))
+    ys_io = [9.0 - 0.8 * i for i in range(len(STREAM))]
+    ys_n = [8.85 - 1.15 * k for k in range(used)]
+    io_w, io_h, x_in, x_out = 1.85, 0.56, 0.7, 14.85
+    n_x, n_w, n_h = 8.7, 3.6, 0.88
+    in_right, n_left, n_right = x_in + io_w, n_x - n_w / 2, n_x + n_w / 2
+
+    def line(start, end, weight, signal):
+        live = abs(signal) > 1e-9
+        color = (POSITIVE if signal > 0 else NEGATIVE) if live else FAINT
+        ax.plot(*zip(start, end), color=color, lw=0.9 + 1.1 * min(abs(weight), 2), alpha=0.9 if live else 1,
+                zorder=2 if live else 1, solid_capstyle="round")
+
+    for i in range(len(STREAM)):
+        for k in range(used):
+            if abs(W1[i, k]) > 1e-9:
+                line((in_right, ys_io[i]), (n_left, ys_n[k]), W1[i, k],
+                     W1[i, k] if token is None else values[i] * W1[i, k])
+    for k in range(used):
+        for j in range(len(STREAM)):
+            if abs(W2[k, j]) > 1e-9:
+                signal = W2[k, j] if token is None else fired[k] * W2[k, j]
+                line((n_right, ys_n[k]), (x_out, ys_io[j]), W2[k, j], signal)
+
+    def node(x, y, label, value, unit=False):
+        color = "gray" if value is None or abs(value) < 1e-9 else "blue" if value > 0 else "orange"
+        box(ax, x, y - io_h / 2, io_w, io_h, color, lw=1.3, radius=0.1)
+        if unit:
+            sum_badge(ax, x, y)
+        shown = label if value is None else f"{label} {number(value)}"
+        faded = value is not None and abs(value) < 1e-9
+        text(ax, x + io_w / 2 + (0.12 if unit else 0), y, shown, size=12.5, mono=True, color=MUTED if faded else INK,
+             zorder=4)
+
+    for i, column_name in enumerate(STREAM):
+        node(x_in, ys_io[i], column_name, None if token is None else values[i])
+        node(x_out, ys_io[i], column_name, None if token is None else written[i], unit=True)
+    for k, (neuron_name, *_) in enumerate(NEURONS):
+        if token is None:
+            color, detail = "violet", f"bias {number(b1[k])}"
+        else:
+            color = "violet" if fired[k] > 0 else "gray"
+            detail = f"reads {number(reads[k])} → y = {number(fired[k])}, " + ("fires" if fired[k] > 0 else "silent")
+        box(ax, n_left, ys_n[k] - n_h / 2, n_w, n_h, color, lw=2 if color == "violet" and token is not None else 1.3,
+            radius=0.12)
+        text(ax, n_x, ys_n[k] + 0.18, f"{k + 1} · {neuron_name}", size=12.5, bold=True, zorder=4)
+        text(ax, n_x, ys_n[k] - 0.21, detail, size=11, mono=True, color=INK if color == "violet" else MUTED, zorder=4)
+    ax.add_patch(FancyBboxPatch((n_left, 0.5), n_w, 0.68, boxstyle="round,pad=0,rounding_size=0.12", fill=False,
+                                edgecolor="#9ca3af", lw=1.3, ls=(0, (4, 3))))
+    text(ax, n_x, 0.84, "8 … 40: all zeros, always silent", size=11, color=MUTED)
+
+    first = "the token" if token is None else "_want in the stream"
+    for x, title, subtitle in [(x_in + io_w / 2, first, "x: its 10 numbers"),
+                               (n_x, "layer 1: the neurons", "7 of 40 used: y = ReLU(read · x + bias)"),
+                               (x_out + io_w / 2, "layer 2: output units", "one per column: Σ, no ReLU")]:
+        text(ax, x, 10.5, title, size=13.5, bold=True)
+        text(ax, x, 9.98, subtitle, size=11, color=MUTED)
+    text(ax, (in_right + n_left) / 2, 9.72, "W1: read columns", size=12.5, bold=True, color="#7c3aed")
+    text(ax, (n_right + x_out) / 2, 9.72, "W2: write rows", size=12.5, bold=True, color="#7c3aed")
+    text(ax, x_out + io_w / 2, 0.84, "then added to the token (5.1)", size=11, color=MUTED)
+    third = ("gray line: carries 0", FAINT) if token is not None else ("thicker: bigger (⅓, 1 or 2)", INK)
+    for k, (label, color) in enumerate([("blue line: a + number", POSITIVE), ("orange line: a − number", NEGATIVE),
+                                         third]):
+        y = 0.95 - 0.42 * k
+        ax.plot([0.7, 1.4], [y, y], color=color, lw=2.6 if k < 2 else 1.4 if token is not None else 3.1)
+        text(ax, 1.55, y, label, size=11, color=MUTED, ha="left")
+    for k, line_text in enumerate(caption):
+        text(ax, 0.7, -0.45 - 0.5 * k, line_text, size=12.5, bold=True, color="#dc2626", ha="left")
+    save(fig, name)
+
+
+def feed_forward_layer():
+    layer_diagram("05_feed_forward_layer.png")
+
+
+def want_through_layer():
+    layer_diagram("05_want_through_layer.png", token=5, caption=(
+        "only neuron 6 fires (y = 1). Along its links (its write row), the output units want and feel get −1 each.",
+        "added to _want (5.1): want 1 − 1 = 0 and feel 0 − 1 = −1, while food 0.99 stays: food, and surely not a "
+        "feeling."))
+
+
 if __name__ == "__main__":
     pipeline()
     training_loop()
@@ -579,3 +871,9 @@ if __name__ == "__main__":
     q_times_kt()
     want_looks_back()
     attention_pattern()
+    block_diagram()
+    want_through_block()
+    relu_plot()
+    one_neuron()
+    feed_forward_layer()
+    want_through_layer()

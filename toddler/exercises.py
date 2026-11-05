@@ -279,3 +279,48 @@ _add(
     "exps = np.exp(scores), then return exps / exps.sum().",
     "\ndef my_softmax(scores):\n    exps = np.exp(scores)\n    return exps / exps.sum()",
 )
+
+
+def _check_relu(my_relu):
+    rng = np.random.default_rng(3)
+    for _ in range(5):
+        x = rng.normal(size=7)
+        result = my_relu(x)
+        if result is None:
+            return None
+        if not _same_vector(result, np.maximum(x, 0), tolerance=1e-9):
+            return False
+    return True
+
+
+# Step 5
+_add(
+    "5.1",
+    lambda a: _same_vector(a, [0, 0, 1.5], tolerance=1e-6),
+    "ReLU keeps a number if it is positive, and gives 0 otherwise.",
+    "ReLU(-2) = 0, ReLU(0) = 0, ReLU(1.5) = 1.5.",
+)
+_add(
+    "5.2",
+    lambda a: str(a).strip().lower().lstrip("_") in ("am", "3"),
+    "Which neuron reads the be column? _am is the only token with be = 1.",
+    "The neuron 'am' (number 3): it reads be, and _am has be = 1. Every other neuron gets 0 or less.",
+)
+_add(
+    "5.3",
+    lambda a: np.ndim(a) == 0 and _close(a, 0),
+    "Its input is me + px - 1, with me = 1 and px = -1 at #5. Then ReLU.",
+    "1 + (-1) - 1 = -1, and ReLU(-1) = 0: it stays silent. The neuron 'I, later' fires instead.",
+)
+_add(
+    "5.4",
+    _check_relu,
+    "return np.maximum(x, 0): it keeps each number if it is positive, and gives 0 otherwise.",
+    "\ndef my_relu(x):\n    return np.maximum(x, 0)",
+)
+_add(
+    "5.5",
+    lambda a: _same_vector(a, [-1, 1]),
+    "The mean of 1 and 3 is 2. Subtract it, then divide by the spread: √(((-1)² + 1²) / 2).",
+    "mean 2 → differences (-1, 1) → spread √((1 + 1) / 2) = 1 → normalized (-1, 1).",
+)
