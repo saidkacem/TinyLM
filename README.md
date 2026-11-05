@@ -55,5 +55,5 @@ described at the top of `website/build.py`.
 8. From toddler to ChatGPT
 
 From Step 3 on, every step trains the toddler from random numbers (or from hand-written hint rows) and shows
-the numbers converge. Each notebook ends with a playground: write your own toddler world (up to 10 lines) and
+the numbers converge. Steps 1, 3 and 4 end with a playground: write your own toddler world (up to 10 lines) and
 run it again.

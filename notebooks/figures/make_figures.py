@@ -530,6 +530,30 @@ def training_together():
     save(fig, "04_training_together.png")
 
 
+def loss_with_positions():
+    _, _, without = train(BIRTH_INPUT, BIRTH_OUTPUT, GUESSES)
+    _, _, with_clock = train(BIRTH_INPUT, random_table(len(TOK.vocab), 10, seed=1), GUESSES, use_positions=True)
+    fig, ax = plt.subplots(figsize=(7.4, 4.0))
+    ax.plot(without, color="#2563eb", lw=2, label="without positions (Step 3)")
+    ax.plot(with_clock, color="#ea580c", lw=2.2, label="with positions")
+    floors = [((6 * np.log(2) + 6 * np.log(3)) / 21, "#2563eb", "floor without positions"),
+              (6 * np.log(3) / 21, "#ea580c", "floor with positions")]
+    for floor, color, label in floors:
+        ax.axhline(floor, color=color, lw=1, ls="--", alpha=0.8)
+        ax.text(150, floor - 0.02, f"{label}: {floor:.3f}", ha="center", va="top", fontsize=10, color=color)
+    for losses, color in [(without, "#2563eb"), (with_clock, "#ea580c")]:
+        ax.annotate(f"{losses[300]:.3f}", (300, losses[300]), textcoords="offset points", xytext=(-40, 8),
+                    fontsize=10, color=color, weight="bold")
+    ax.set_xlim(0, 300)
+    ax.set_ylim(0, 1.6)
+    ax.set_xlabel("rounds of training")
+    ax.set_ylabel("average loss (both start near 4.1)")
+    for side in ("top", "right"):
+        ax.spines[side].set_visible(False)
+    ax.legend(frameon=False, loc="upper right")
+    save(fig, "04_loss_with_positions.png")
+
+
 if __name__ == "__main__":
     pipeline()
     training_loop()
@@ -545,3 +569,4 @@ if __name__ == "__main__":
     adding_positions()
     two_hands()
     training_together()
+    loss_with_positions()
