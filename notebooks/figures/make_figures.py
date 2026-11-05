@@ -397,6 +397,34 @@ def two_hands():
     save(fig, "03_two_hands.png")
 
 
+def training_together():
+    fig, ax = canvas(16.4, 5.1, bottom=0.5)
+    parts = [("Embedding table", "trained", "green"), ("+ Position clock", "fixed: not trained", "gray"),
+             ("Attention", "trained", "violet"), ("Feed-forward", "trained", "violet"),
+             ("Output layer", "trained", "orange"), ("Guess vs answer", "milk 30%: surprise!", "red")]
+    width, gap, y, height = 2.3, 0.42, 3.4, 1.3
+    centers = [0.3 + width / 2 + i * (width + gap) for i in range(len(parts))]
+    for x, (name, note, color) in zip(centers, parts):
+        box(ax, x - width / 2, y - height / 2, width, height, color)
+        text(ax, x, y + 0.2, name, size=11.5, bold=True)
+        text(ax, x, y - 0.25, note, size=9.5, color=MUTED)
+    for left, right in zip(centers, centers[1:]):
+        arrow(ax, (left + width / 2, y), (right - width / 2, y))
+    back = 1.75
+    ax.plot([centers[-1], centers[-1]], [y - height / 2, back], color="#dc2626", lw=1.8)
+    for right, left in zip(centers[::-1], centers[-2::-1]):
+        arrow(ax, (right, back), (left, back), color="#dc2626", lw=1.8)
+    for x, (_, _, color) in zip(centers[:-1], parts[:-1]):
+        if color != "gray":
+            arrow(ax, (x, back), (x, y - height / 2), color="#dc2626", lw=1.4, head=10)
+            text(ax, x + 0.12, (back + y - height / 2) / 2, "push", size=9.5, color="#dc2626", ha="left")
+    text(ax, 0.3, 4.6, "1. forward: one guess with the current numbers, positions included", size=11.5, bold=True,
+         ha="left")
+    text(ax, 0.3, 0.95, "2. backward: the surprise flows back, and every trained table gets its push in the same round",
+         size=11.5, bold=True, color="#dc2626", ha="left")
+    save(fig, "03_training_together.png")
+
+
 if __name__ == "__main__":
     pipeline()
     training_loop()
@@ -407,3 +435,4 @@ if __name__ == "__main__":
     position_clock()
     adding_positions()
     two_hands()
+    training_together()
