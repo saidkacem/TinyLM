@@ -234,3 +234,48 @@ _add(
     "After how many steps of 45° does the hand come back to where it started?",
     "Position 9: (9 - 1) × 45° = 360°, a full turn, so the hand points exactly like position 1.",
 )
+
+
+def _softmax(scores):
+    scores = np.asarray(scores, dtype=float)
+    exps = np.exp(scores - scores.max())
+    return exps / exps.sum()
+
+
+def _check_softmax(my_softmax):
+    rng = np.random.default_rng(2)
+    for _ in range(5):
+        scores = rng.normal(size=6)
+        result = my_softmax(scores)
+        if result is None:
+            return None
+        if not _same_vector(result, _softmax(scores), tolerance=1e-6):
+            return False
+    return True
+
+
+# Step 4
+_add(
+    "4.1",
+    lambda a: np.ndim(a) == 0 and _close(a, np.exp(2) / (np.exp(2) + 5), tolerance=0.01),
+    "The score of _hungry becomes 2 × 2 ÷ 2 = 2, the 5 others stay 0. Then softmax: e² ÷ (e² + 5 × e⁰).",
+    "score 2 → e² = 7.39; total 7.39 + 5 = 12.39; share 7.39 ÷ 12.39 = 0.60.",
+)
+_add(
+    "4.2",
+    lambda a: str(a).strip().lower().lstrip("_") == "hug",
+    "_want finds the feeling _sad. Which slot is _sad's value in, and where does the output table put that slot?",
+    "_sad's value is (0, 1, 0, 0): slot 2, which goes to the hug column. _want gets +0.99 hug.",
+)
+_add(
+    "4.3",
+    lambda a: np.ndim(a) == 0 and _close(a, 1 / 3),
+    "A query of 0 gives every score 0, so every e^score is 1. How many tokens can _hungry see?",
+    "3 tokens (#1, #2, #3), all with e^0 = 1: each gets 1 ÷ 3 = 1/3.",
+)
+_add(
+    "4.4",
+    _check_softmax,
+    "exps = np.exp(scores), then return exps / exps.sum().",
+    "\ndef my_softmax(scores):\n    exps = np.exp(scores)\n    return exps / exps.sum()",
+)

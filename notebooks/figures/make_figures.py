@@ -12,10 +12,11 @@ from matplotlib.patches import Circle, FancyBboxPatch, Rectangle  # noqa: E402
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parents[1]))
 
+from toddler.attention import attention, hint_attention  # noqa: E402
 from toddler.bpe import BPETokenizer  # noqa: E402
 from toddler.data import CORPUS  # noqa: E402
 from toddler.embeddings import COLUMNS, toddler_table  # noqa: E402
-from toddler.positions import POSITION_COLUMNS, position_vector  # noqa: E402
+from toddler.positions import POSITION_COLUMNS, position_vector, with_positions  # noqa: E402
 
 MONO = "DejaVu Sans Mono"
 INK = "#1f2937"
@@ -425,6 +426,63 @@ def training_together():
     save(fig, "03_training_together.png")
 
 
+def sentence_attention():
+    ids = TOK.encode(CORPUS[0])
+    added, weights = attention(with_positions(TABLE[ids]), **hint_attention())
+    return ids, added, weights
+
+
+def want_looks_back():
+    ids, _, weights = sentence_attention()
+    tokens = [TOK.vocab[i] for i in ids[:6]]
+    keys = ["2" if t == "_hungry" else "0" for t in tokens]
+    values = ["food" if t == "_hungry" else "0" for t in tokens]
+    fig, ax = canvas(13.2, 6.6, bottom=0.4)
+    xs = [1.2 + 2.1 * k for k in range(6)]
+    for x, token, key, value, weight in zip(xs, tokens, keys, values, weights[5, :6]):
+        strong = weight > 0.5
+        asker = token == "_want"
+        chip(ax, x, 3.2, token, 1.5, h=0.55, color="red" if asker else "violet" if strong else "gray", size=12,
+             bold=strong or asker)
+        text(ax, x, 2.45, f"key {key}", size=10.5, mono=True, color=INK if strong else MUTED)
+        text(ax, x, 2.0, f"value {value}", size=10.5, mono=True, color=INK if strong else MUTED)
+        if not asker:
+            arrow(ax, (xs[5] - 0.2, 3.55), (x, 3.55), color="#7c3aed" if strong else "#c4b5fd", lw=3 if strong else 1,
+                  rad=0.35, head=16 if strong else 8)
+        label = f"{weight:.1%}"
+        text(ax, x, 1.4, label, size=13 if strong else 10.5, bold=strong, color="#7c3aed" if strong else MUTED)
+    text(ax, xs[5], 4.05, "query 6", size=10.5, mono=True, color="#dc2626")
+    text(ax, 0.3, 6.0, '_want asks "where is a feeling?"  Only _hungry has a matching key, so it gets almost all the attention',
+         size=11.5, bold=True, ha="left")
+    text(ax, 0.3, 0.75, "mix of the values: 0.988 × food  →  _want's vector gets +0.99 in its food column",
+         size=11.5, color="#7c3aed", ha="left", bold=True)
+    save(fig, "04_want_looks_back.png")
+
+
+def attention_pattern():
+    ids, _, weights = sentence_attention()
+    labels = [f"#{p} {TOK.vocab[i]}" for p, i in enumerate(ids, start=1)]
+    fig, ax = plt.subplots(figsize=(7.4, 6.4))
+    shown = np.where(np.tril(np.ones_like(weights)) > 0, weights, np.nan)
+    cmap = plt.get_cmap("Purples").copy()
+    cmap.set_bad("#f3f4f6")
+    ax.imshow(shown, cmap=cmap, vmin=0, vmax=1)
+    ax.set_xticks(range(len(labels)), labels, rotation=45, ha="right", family=MONO, fontsize=10)
+    ax.set_yticks(range(len(labels)), labels, family=MONO, fontsize=10)
+    for i in range(len(labels)):
+        for j in range(len(labels)):
+            if j > i:
+                ax.text(j, i, "×", ha="center", va="center", fontsize=10, color="#cbd5e1")
+            else:
+                value = weights[i, j]
+                ax.text(j, i, f"{value:.0%}" if value >= 0.01 else f"{value:.1%}", ha="center", va="center",
+                        fontsize=9, color="white" if value > 0.6 else INK, weight="bold" if value > 0.6 else "normal")
+    ax.set_xlabel("looks at this token", fontsize=11)
+    ax.set_ylabel("this token", fontsize=11)
+    ax.set_title("attention weights (× = the future, hidden)", fontsize=12)
+    save(fig, "04_attention_pattern.png")
+
+
 if __name__ == "__main__":
     pipeline()
     training_loop()
@@ -436,3 +494,5 @@ if __name__ == "__main__":
     adding_positions()
     two_hands()
     training_together()
+    want_looks_back()
+    attention_pattern()
