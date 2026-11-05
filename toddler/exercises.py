@@ -115,3 +115,66 @@ _add(
     "10 tokens: _I _am _ h u n g r y _. The merges that build _hungry (#11 to #16) are missing, "
     "so 'hungry' stays in 7 pieces.",
 )
+
+
+def _clean_row(token):
+    from .embeddings import CLEAN_ROWS
+
+    return np.array(CLEAN_ROWS[token], dtype=float)
+
+
+def _check_dot(my_dot):
+    rng = np.random.default_rng(1)
+    for _ in range(5):
+        a, b = rng.normal(size=8), rng.normal(size=8)
+        result = my_dot(a, b)
+        if result is None:
+            return None
+        if np.ndim(result) != 0 or not np.isclose(result, a @ b):
+            return False
+    return True
+
+
+def _check_thing_column(table9):
+    from .embeddings import CLEAN_ROWS
+
+    table9 = np.asarray(table9, dtype=float)
+    tok = _tokenizer()
+    if table9.shape != (len(tok.vocab), 9):
+        return False
+    if not table9[:, 8].any():
+        return None
+    for token, values in CLEAN_ROWS.items():
+        thing = 1 if token in ("_milk", "_mommy", "_bed") else 0
+        if not np.allclose(table9[tok.token_to_id[token]], values + [thing]):
+            return False
+    return True
+
+
+# Step 2
+_add(
+    "2.1",
+    lambda a: np.ndim(a) == 0 and _close(a, _clean_row("_tired") @ _clean_row("_bed")),
+    "Multiply column by column, then ADD the results: the answer is one number, not a row.",
+    "_tired = 0 0 0 0 1 0 0 1 and _bed = 0 0 0 0 0 0 0 1 → multiply: 0 0 0 0 0 0 0 1 → sum = 1 "
+    "(they share `sleep`).",
+)
+_add(
+    "2.2",
+    lambda a: a.strip().lstrip("_") == "milk",
+    "Go column by column: feel 0 - 1 + 1, food 0 - 0 + 1, sleep 1 - 1 + 0.",
+    "_bed - _tired + _hungry = 0 0 0 0 0 1 0 0 = _milk. Bed is to tired what milk is to hungry.",
+)
+_add(
+    "2.3",
+    _check_dot,
+    "Start with total = 0, loop over the columns with i, add a[i] * b[i], and return total.",
+    "\ndef my_dot(a, b):\n    total = 0\n    for i in range(len(a)):\n        total += a[i] * b[i]\n    return total",
+)
+_add(
+    "2.4",
+    _check_thing_column,
+    "Set column 8 to 1 in the rows of _milk, _mommy and _bed only; every other used row keeps 0 there.",
+    "\nfor token in ['_milk', '_mommy', '_bed']:\n    table9[tok.token_to_id[token], 8] = 1\n"
+    "Now milk·mommy = milk·bed = mommy·bed = 1, and every other dot product stays the same.",
+)
