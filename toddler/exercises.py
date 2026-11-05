@@ -22,7 +22,6 @@ def check(exercise, answer):
         print(f"[{exercise}] Correct!")
     else:
         print(f"[{exercise}] Not yet. Hint: {hint}")
-    return bool(ok)
 
 
 def solution(exercise):
