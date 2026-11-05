@@ -35,10 +35,11 @@ ROADMAP = [  # (title, question) per step; steps without a notebook yet show as 
     ("The big picture", "What does an LLM actually do?"),
     ("Tokenization", "How does text become numbers?"),
     ("Embeddings", "How can a number carry meaning?"),
-    ("Learning", "How do random numbers become knowledge?"),
     ("Positions", "How does it know word order?"),
     ("Attention", "How does “want” find “hungry”?"),
     ("Transformer block", "How are the pieces stacked into a brain?"),
+    ("Output & softmax", "How do vectors become “milk 95%”?"),
+    ("Training", "How do random numbers become knowledge?"),
     ("Generation", "How does it write, one token at a time?"),
     ("Toddler → ChatGPT", "What changes at full scale?"),
 ]

@@ -116,10 +116,10 @@ _add(
 )
 
 
-def _hint_row(token):
-    from .embeddings import HINT_ROWS
+def _clean_row(token):
+    from .embeddings import CLEAN_ROWS
 
-    return np.array(HINT_ROWS[token], dtype=float)
+    return np.array(CLEAN_ROWS[token], dtype=float)
 
 
 def _check_dot(my_dot):
@@ -135,7 +135,7 @@ def _check_dot(my_dot):
 
 
 def _check_thing_column(table9):
-    from .embeddings import HINT_ROWS
+    from .embeddings import CLEAN_ROWS
 
     table9 = np.asarray(table9, dtype=float)
     tok = _tokenizer()
@@ -143,7 +143,7 @@ def _check_thing_column(table9):
         return False
     if not table9[:, 8].any():
         return None
-    for token, values in HINT_ROWS.items():
+    for token, values in CLEAN_ROWS.items():
         thing = 1 if token in ("_milk", "_mommy", "_bed") else 0
         if not np.allclose(table9[tok.token_to_id[token]], values + [thing]):
             return False
@@ -153,7 +153,7 @@ def _check_thing_column(table9):
 # Step 2
 _add(
     "2.1",
-    lambda a: np.ndim(a) == 0 and _close(a, _hint_row("_tired") @ _hint_row("_bed")),
+    lambda a: np.ndim(a) == 0 and _close(a, _clean_row("_tired") @ _clean_row("_bed")),
     "Multiply column by column, then ADD the results: the answer is one number, not a row.",
     "_tired = 0 0 0 0 1 0 0 1 and _bed = 0 0 0 0 0 0 0 1 → multiply: 0 0 0 0 0 0 0 1 → sum = 1 "
     "(they share `sleep`).",
@@ -179,67 +179,16 @@ _add(
 )
 
 
-def _same_vector(answer, expected, tolerance=0.02):
-    answer = np.asarray(answer, dtype=float).ravel()
-    expected = np.asarray(expected, dtype=float).ravel()
-    return answer.shape == expected.shape and bool(np.allclose(answer, expected, atol=tolerance))
-
-
-def _softmax(scores):
-    from .learning import softmax
-
-    return softmax(np.asarray(scores, dtype=float))
-
-
-def _check_softmax(my_softmax):
-    rng = np.random.default_rng(2)
-    for _ in range(5):
-        scores = rng.normal(size=4)
-        result = my_softmax(scores)
-        if result is None:
-            return None
-        if not _same_vector(result, _softmax(scores), tolerance=1e-6):
-            return False
-    return True
-
-
-# Step 3
-_add(
-    "3.1",
-    lambda a: _same_vector(a, _softmax([2, 0, 0])),
-    "e² ≈ 7.389 and e⁰ = 1. Add the three results, then divide each one by the total.",
-    "e^2 = 7.389, e^0 = 1, e^0 = 1, total 9.389 → milk 7.389 / 9.389 = 0.787, mommy and bed 1 / 9.389 = 0.107 each.",
-)
-_add(
-    "3.2",
-    lambda a: np.ndim(a) == 0 and _close(a, -np.log(0.25), tolerance=0.02),
-    "loss = −ln(probability of the right answer): the ln key of a calculator, or np.log in Python.",
-    "loss = -ln(0.25) = 1.39. It is the loss of a toddler hesitating between 4 equally likely answers.",
-)
-_add(
-    "3.3",
-    lambda a: _same_vector(a, [0.7, -0.8, 0.1], tolerance=0.01),
-    "The right answer's score gets probability − 1; every other score gets its probability.",
-    "milk 0.7, mommy 0.2 - 1 = -0.8, bed 0.1. The pushes always add up to 0.",
-)
-_add(
-    "3.4",
-    lambda a: np.ndim(a) == 0 and _close(a, 0.80, tolerance=0.005),
-    "new = old − learning rate × push.",
-    "0.82 - 0.1 × 0.2 = 0.82 - 0.02 = 0.80. A positive push means the number goes down.",
-)
-_add(
-    "3.5",
-    _check_softmax,
-    "exps = np.exp(scores), then return exps / exps.sum().",
-    "\ndef my_softmax(scores):\n    exps = np.exp(scores)\n    return exps / exps.sum()",
-)
-
-
 def _position(position):
     from .positions import position_vector
 
     return position_vector(position)
+
+
+def _same_vector(answer, expected, tolerance=0.02):
+    answer = np.asarray(answer, dtype=float).ravel()
+    expected = np.asarray(expected, dtype=float).ravel()
+    return answer.shape == expected.shape and bool(np.allclose(answer, expected, atol=tolerance))
 
 
 def _check_position_function(my_position_vector):
@@ -252,35 +201,35 @@ def _check_position_function(my_position_vector):
     return True
 
 
-# Step 4
+# Step 3
 _add(
-    "4.1",
+    "3.1",
     lambda a: _same_vector(a, _position(7)),
     "Position 7 turns the hand by (7 - 1) × 45° = 270°. Where does a hand point at 270°?",
     "270° points straight down: (px, py) = (0, -1).",
 )
 _add(
-    "4.2",
-    lambda a: _same_vector(a, np.append(_hint_row("_want"), _position(6))),
+    "3.2",
+    lambda a: _same_vector(a, np.append(_clean_row("_want"), _position(6))),
     "Take the 8 meaning numbers of _want, then the 2 numbers of position 6 (225°).",
     "_want = 0 0 1 0 0 0 0 0 and position 6 (225°) = (-0.71, -0.71). "
     "Together: 0 0 1 0 0 0 0 0 -0.71 -0.71.",
 )
 _add(
-    "4.3",
+    "3.3",
     lambda a: np.ndim(a) == 0 and _close(a, _position(2) @ _position(4), tolerance=0.02),
     "px × px + py × py, with position 2 = (0.71, 0.71) and position 4 = (-0.71, 0.71).",
     "0.71 × (-0.71) + 0.71 × 0.71 = -0.5 + 0.5 = 0. They are 2 steps (90°) apart, like positions 1 and 3.",
 )
 _add(
-    "4.4",
+    "3.4",
     _check_position_function,
     "angle = math.radians((position - 1) * 45), then return [math.cos(angle), math.sin(angle)].",
     "\nimport math\n\ndef my_position_vector(position):\n    angle = math.radians((position - 1) * 45)\n"
     "    return [math.cos(angle), math.sin(angle)]",
 )
 _add(
-    "4.5",
+    "3.5",
     lambda a: int(a) == 9,
     "After how many steps of 45° does the hand come back to where it started?",
     "Position 9: (9 - 1) × 45° = 360°, a full turn, so the hand points exactly like position 1.",

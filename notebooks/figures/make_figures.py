@@ -14,8 +14,7 @@ sys.path.insert(0, str(HERE.parents[1]))
 
 from toddler.bpe import BPETokenizer  # noqa: E402
 from toddler.data import CORPUS  # noqa: E402
-from toddler.embeddings import COLUMNS, hint_table, random_table  # noqa: E402
-from toddler.learning import make_guesses, softmax, train  # noqa: E402
+from toddler.embeddings import COLUMNS, toddler_table  # noqa: E402
 from toddler.positions import POSITION_COLUMNS, position_vector  # noqa: E402
 
 MONO = "DejaVu Sans Mono"
@@ -30,11 +29,7 @@ COLORS = {  # name: (fill, border)
     "red": ("#fee2e2", "#dc2626"),
 }
 TOK = BPETokenizer.train(CORPUS)
-TABLE = hint_table(TOK)
-GUESSES = make_guesses(TOK, CORPUS)
-BIRTH_INPUT = random_table(len(TOK.vocab), seed=0)
-BIRTH_OUTPUT = random_table(len(TOK.vocab), seed=1)
-USED = ["_I", "_am", "_want", "_.", "_hungry", "_sad", "_tired", "_milk", "_mommy", "_bed"]
+TABLE = toddler_table(TOK)
 
 
 def canvas(width, height, scale=0.8, bottom=0.0):
@@ -114,11 +109,11 @@ def pipeline():
     rows = [  # (y center, height, color, title, step)
         (12.1, 1.0, "blue", "1. Tokenizer", "Step 1"),
         (10.3, 1.2, "green", "2. Embedding", "Step 2"),
-        (8.7, 0.9, "green", "3. + Position", "Step 4"),
-        (6.9, 1.3, "violet", "4. Transformer blocks × N", "Steps 5 and 6"),
-        (5.1, 1.0, "orange", "5. Output layer", "Step 3"),
-        (3.4, 1.2, "orange", "6. Softmax", "Step 3"),
-        (1.6, 0.9, "red", "7. Pick", "Step 7"),
+        (8.7, 0.9, "green", "3. + Position", "Step 3"),
+        (6.9, 1.3, "violet", "4. Transformer blocks × N", "Steps 4 and 5"),
+        (5.1, 1.0, "orange", "5. Output layer", "Step 6"),
+        (3.4, 1.2, "orange", "6. Softmax", "Step 6"),
+        (1.6, 0.9, "red", "7. Pick", "Step 8"),
     ]
     previous_bottom = 13.05
     for y, h, color, title, step in rows:
@@ -319,106 +314,6 @@ def similarity():
     save(fig, "02_similarity.png")
 
 
-def smallest_model():
-    fig, ax = canvas(16.4, 5.1, bottom=0.5)
-    parts = [("Token seen", "_want (ID 28)", "blue"), ("Input table", "read its row: x", "green"),
-             ("Output table", "x · every row = 53 scores", "orange"), ("Softmax", "53 probabilities", "orange"),
-             ("Surprise (loss)", "−ln p(right answer)", "red")]
-    width, gap, y, height = 2.75, 0.55, 3.4, 1.3
-    centers = [0.3 + width / 2 + i * (width + gap) for i in range(len(parts))]
-    for x, (name, note, color) in zip(centers, parts):
-        box(ax, x - width / 2, y - height / 2, width, height, color)
-        text(ax, x, y + 0.2, name, size=11.5, bold=True)
-        text(ax, x, y - 0.25, note, size=9.5, color=MUTED)
-    for left, right in zip(centers, centers[1:]):
-        arrow(ax, (left + width / 2, y), (right - width / 2, y))
-    back = 1.75
-    ax.plot([centers[-1], centers[-1]], [y - height / 2, back], color="#dc2626", lw=1.8)
-    arrow(ax, (centers[-1], back), (centers[1], back), color="#dc2626", lw=1.8)
-    for x in centers[1:3]:
-        arrow(ax, (x, back), (x, y - height / 2), color="#dc2626", lw=1.4, head=10)
-        text(ax, x + 0.12, (back + y - height / 2) / 2, "push", size=9.5, color="#dc2626", ha="left")
-    text(ax, 0.3, 4.6, "1. forward: one guess", size=11.5, bold=True, ha="left")
-    text(ax, 0.3, 0.95, "2. backward: the push reaches both tables, and both move in the same step",
-         size=11.5, bold=True, color="#dc2626", ha="left")
-    save(fig, "03_smallest_model.png")
-
-
-def one_step():
-    x = np.array([1.0, 1.0])
-    rows = np.array([[0.5, -0.5], [1.0, 0.0], [-0.5, -0.5]])
-    probs = softmax(rows @ x)
-    push_scores = probs - np.array([1.0, 0.0, 0.0])
-    new_x = x - 0.5 * (push_scores @ rows)
-    new_rows = rows - 0.5 * np.outer(push_scores, x)
-    new_probs = softmax(new_rows @ new_x)
-    fig, ax = plt.subplots(figsize=(6.6, 3.7))
-    places = np.arange(3)
-    ax.bar(places - 0.19, probs, 0.36, color="#d1d5db", label="before the step")
-    ax.bar(places + 0.19, new_probs, 0.36, color="#ea580c", label="after one step")
-    for k in range(3):
-        ax.text(k - 0.19, probs[k] + 0.015, f"{probs[k]:.1%}", ha="center", fontsize=10, color=MUTED)
-        ax.text(k + 0.19, new_probs[k] + 0.015, f"{new_probs[k]:.1%}", ha="center", fontsize=10, weight="bold")
-    ax.set_xticks(places, ["_milk\n(right answer)", "_mommy", "_bed"], family=MONO)
-    ax.set_ylim(0, 0.8)
-    ax.set_yticks([])
-    for side in ("top", "right", "left"):
-        ax.spines[side].set_visible(False)
-    ax.set_title(f"after _want, one step with learning rate 0.5: loss {-np.log(probs[0]):.2f} → "
-                 f"{-np.log(new_probs[0]):.2f}", fontsize=11)
-    ax.legend(frameon=False, loc="upper right")
-    save(fig, "03_one_step.png")
-
-
-def loss_curve():
-    _, _, random_losses = train(BIRTH_INPUT, BIRTH_OUTPUT, GUESSES)
-    _, _, hint_losses = train(TABLE, BIRTH_OUTPUT, GUESSES)
-    floor = (6 * np.log(2) + 6 * np.log(3)) / 21
-    fig, ax = plt.subplots(figsize=(7.4, 4.0))
-    ax.plot(random_losses, color="#2563eb", lw=2.2, label="random start")
-    ax.plot(hint_losses, color="#16a34a", lw=1.6, ls=(0, (4, 2)), label="hint start (our rows of Step 2)")
-    ax.axhline(floor, color=MUTED, lw=1, ls="--")
-    ax.text(298, floor - 0.22, f"floor of this model: {floor:.3f}", ha="right", fontsize=10, color=MUTED)
-    for r, offset, digits in [(0, (8, -4), 2), (25, (8, 4), 2), (50, (6, 8), 2), (300, (-40, 10), 3)]:
-        ax.annotate(f"{random_losses[r]:.{digits}f}", (r, random_losses[r]), textcoords="offset points", xytext=offset,
-                    fontsize=10, color="#2563eb", weight="bold")
-        ax.plot(r, random_losses[r], "o", color="#2563eb", ms=4)
-    ax.set_xlim(0, 300)
-    ax.set_ylim(0, 4.5)
-    ax.set_xlabel("rounds of training")
-    ax.set_ylabel("average loss (surprise)")
-    for side in ("top", "right"):
-        ax.spines[side].set_visible(False)
-    ax.legend(frameon=False)
-    save(fig, "03_loss_curve.png")
-
-
-def rows_before_after():
-    trained_input, trained_output, _ = train(BIRTH_INPUT, BIRTH_OUTPUT, GUESSES)
-    content = [(3.5, 3.5, 6, 6)]
-    groups = [(0.5, 0.5, 2, 2), (3.5, 3.5, 3, 3), (6.5, 6.5, 3, 3)]  # am+want, feelings, things
-    panels = [("input table, at birth", BIRTH_INPUT, content), ("input table, after 300 rounds", trained_input, content),
-              ("output table, after 300 rounds", trained_output, groups)]
-    fig, axes = plt.subplots(1, 3, figsize=(16.5, 5.7))
-    for ax, (title, table, boxes) in zip(axes, panels):
-        vectors = np.array([table[TOK.token_to_id[t]] for t in USED])
-        vectors = vectors / np.linalg.norm(vectors, axis=1, keepdims=True)
-        cosine = vectors @ vectors.T
-        ax.imshow(cosine, cmap="RdBu", vmin=-1, vmax=1)
-        ax.set_xticks(range(len(USED)), USED, rotation=50, ha="right", family=MONO, fontsize=9.5)
-        ax.set_yticks(range(len(USED)), USED, family=MONO, fontsize=9.5)
-        for i in range(len(USED)):
-            for j in range(len(USED)):
-                value = cosine[i, j]
-                label = "0" if abs(value) < 0.05 else f"{value:.1f}".replace("-", "−")
-                ax.text(j, i, label, ha="center", va="center", fontsize=7.5,
-                        color="white" if abs(value) > 0.6 else INK)
-        for x, y, w, h in boxes:
-            ax.add_patch(Rectangle((x, y), w, h, fill=False, edgecolor=INK, lw=1.6))
-        ax.set_title(title, fontsize=12)
-    save(fig, "03_rows_before_after.png")
-
-
 def position_clock():
     tokens = [TOK.vocab[i] for i in TOK.encode(CORPUS[0])]
     fig, ax = plt.subplots(figsize=(7, 7))
@@ -443,7 +338,7 @@ def position_clock():
     ax.add_patch(Circle((0, 0), 0.06, color=INK, zorder=4))
     text(ax, 0, -2.45, "the hand turns 45° per position: the two _I point in opposite directions",
          size=10, color="#dc2626")
-    save(fig, "04_position_clock.png")
+    save(fig, "03_position_clock.png")
 
 
 def adding_positions():
@@ -475,7 +370,7 @@ def adding_positions():
         ax.add_patch(Circle(center, 0.5, fill=False, edgecolor="#d1d5db", lw=1.5))
         arrow(ax, center, (center[0] + 0.42 * hand[0], center[1] + 0.42 * hand[1]), color="#dc2626", lw=2.2)
         text(ax, center[0], center[1] - 0.75, f"hand #{position}", size=10, color=MUTED)
-    save(fig, "04_adding_positions.png")
+    save(fig, "03_adding_positions.png")
 
 
 def two_hands():
@@ -499,14 +394,14 @@ def two_hands():
         for (x, y), labels in tips.items():
             text(ax, 1.42 * x, 1.42 * y + (0.12 if y >= 0 else -0.12), " = ".join(labels), size=11, bold=True)
         ax.add_patch(Circle((0, 0), 0.05, color=INK, zorder=4))
-    save(fig, "04_two_hands.png")
+    save(fig, "03_two_hands.png")
 
 
 def training_together():
     fig, ax = canvas(16.4, 5.1, bottom=0.5)
     parts = [("Embedding table", "trained", "green"), ("+ Position clock", "fixed: not trained", "gray"),
              ("Attention", "trained", "violet"), ("Feed-forward", "trained", "violet"),
-             ("Output table", "trained", "orange"), ("Guess vs answer", "milk 30%: surprise!", "red")]
+             ("Output layer", "trained", "orange"), ("Guess vs answer", "milk 30%: surprise!", "red")]
     width, gap, y, height = 2.3, 0.42, 3.4, 1.3
     centers = [0.3 + width / 2 + i * (width + gap) for i in range(len(parts))]
     for x, (name, note, color) in zip(centers, parts):
@@ -527,31 +422,7 @@ def training_together():
          ha="left")
     text(ax, 0.3, 0.95, "2. backward: the surprise flows back, and every trained table gets its push in the same round",
          size=11.5, bold=True, color="#dc2626", ha="left")
-    save(fig, "04_training_together.png")
-
-
-def loss_with_positions():
-    _, _, without = train(BIRTH_INPUT, BIRTH_OUTPUT, GUESSES)
-    _, _, with_clock = train(BIRTH_INPUT, random_table(len(TOK.vocab), 10, seed=1), GUESSES, use_positions=True)
-    fig, ax = plt.subplots(figsize=(7.4, 4.0))
-    ax.plot(without, color="#2563eb", lw=2, label="without positions (Step 3)")
-    ax.plot(with_clock, color="#ea580c", lw=2.2, label="with positions")
-    floors = [((6 * np.log(2) + 6 * np.log(3)) / 21, "#2563eb", "floor without positions"),
-              (6 * np.log(3) / 21, "#ea580c", "floor with positions")]
-    for floor, color, label in floors:
-        ax.axhline(floor, color=color, lw=1, ls="--", alpha=0.8)
-        ax.text(150, floor - 0.02, f"{label}: {floor:.3f}", ha="center", va="top", fontsize=10, color=color)
-    for losses, color in [(without, "#2563eb"), (with_clock, "#ea580c")]:
-        ax.annotate(f"{losses[300]:.3f}", (300, losses[300]), textcoords="offset points", xytext=(-40, 8),
-                    fontsize=10, color=color, weight="bold")
-    ax.set_xlim(0, 300)
-    ax.set_ylim(0, 1.6)
-    ax.set_xlabel("rounds of training")
-    ax.set_ylabel("average loss (both start near 4.1)")
-    for side in ("top", "right"):
-        ax.spines[side].set_visible(False)
-    ax.legend(frameon=False, loc="upper right")
-    save(fig, "04_loss_with_positions.png")
+    save(fig, "03_training_together.png")
 
 
 if __name__ == "__main__":
@@ -561,12 +432,7 @@ if __name__ == "__main__":
     bpe_merge_tree()
     embedding_lookup()
     similarity()
-    smallest_model()
-    one_step()
-    loss_curve()
-    rows_before_after()
     position_clock()
     adding_positions()
     two_hands()
     training_together()
-    loss_with_positions()

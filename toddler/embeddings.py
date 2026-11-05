@@ -3,8 +3,8 @@ import numpy as np
 
 COLUMNS = ["me", "be", "want", "stop", "feel", "food", "hug", "sleep"]
 
-# Our hint: rows written by hand, easy to read. Training (Step 3) finds its own numbers, which look like random decimals.
-HINT_ROWS = {
+# Cleaned-up values a trained toddler could end up with; real learned values look like random decimals.
+CLEAN_ROWS = {
     "_I":      [1, 0, 0, 0, 0, 0, 0, 0],
     "_am":     [0, 1, 0, 0, 0, 0, 0, 0],
     "_want":   [0, 0, 1, 0, 0, 0, 0, 0],
@@ -24,10 +24,9 @@ def random_table(vocab_size, dim=len(COLUMNS), seed=0):
     return rng.normal(0.0, 0.5, size=(vocab_size, dim)).round(2) + 0.0  # + 0.0 turns -0.0 into 0.0
 
 
-def hint_table(tokenizer, seed=0):
-    """Random table whose used rows hold our hint (hint tokens missing from the vocabulary are skipped)."""
+def toddler_table(tokenizer, seed=0):
+    """Random table whose 10 used rows hold the cleaned-up trained values."""
     table = random_table(len(tokenizer.vocab), seed=seed)
-    for token, values in HINT_ROWS.items():
-        if token in tokenizer.token_to_id:
-            table[tokenizer.token_to_id[token]] = values
+    for token, values in CLEAN_ROWS.items():
+        table[tokenizer.token_to_id[token]] = values
     return table
