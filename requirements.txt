@@ -3,3 +3,4 @@ pandas
 matplotlib
 ipykernel
 nbstripout
+markdown-it-py

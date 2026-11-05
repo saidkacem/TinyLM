@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Step $step of Toddler LLM: $question">
+<title>Step $step: $title · Toddler LLM</title>
+<link rel="stylesheet" href="assets/style.css">
+<script>document.documentElement.dataset.theme = localStorage.getItem("theme") || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");</script>
+</head>
+<body class="lesson-page">
+<div class="progress-bar" aria-hidden="true"><span></span></div>
+$header
+<section class="lesson-hero">
+  <div class="glow" aria-hidden="true"></div>
+  <div class="wrap">
+    <span class="step-badge">Step $step</span>
+    <h1>$title</h1>
+    <p class="lead">$question</p>
+    <p class="meta">$minutes min read · $count questions</p>
+  </div>
+</section>
+<div class="wrap layout">
+  <nav class="toc" aria-label="On this page"><p>On this page</p><ol>$toc</ol></nav>
+  <article class="content">$body</article>
+</div>
+<nav class="wrap pager" aria-label="Lessons">$pager</nav>
+$footer
+<div class="lightbox" hidden><img alt=""></div>
+<script src="assets/app.js"></script>
+</body>
+</html>

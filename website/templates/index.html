@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="How large language models work, explained on a tiny toddler model built by hand.">
+<title>Toddler LLM: how an LLM works, built by hand</title>
+<link rel="stylesheet" href="assets/style.css">
+<script>document.documentElement.dataset.theme = localStorage.getItem("theme") || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");</script>
+</head>
+<body class="home">
+$header
+<section class="hero">
+  <div class="glow" aria-hidden="true"></div>
+  <div class="wrap hero-grid">
+    <div class="hero-text">
+      <p class="eyebrow">LLMs from scratch</p>
+      <h1>How does ChatGPT work?<br><span class="grad">Let's build one for a toddler.</span></h1>
+      <p class="lead">One tiny model, three baby sentences, and every number worked out by hand. From tokens to transformers, one step at a time.</p>
+      <div class="cta">
+        <a class="button primary" href="$start">Start reading</a>
+        <a class="button ghost resume" href="$start" hidden>Continue</a>
+      </div>
+    </div>
+    <div class="demo" aria-label="Animation: the toddler model reads a sentence and guesses the next word">
+      <div class="demo-bar"><i></i><i></i><i></i><span>toddler-llm</span></div>
+      <div class="demo-body">
+        <div class="demo-row"><span class="demo-label">text</span><p><span class="demo-text"></span><span class="caret"></span></p></div>
+        <div class="demo-row"><span class="demo-label">tokens</span><div class="demo-tokens"></div></div>
+        <div class="demo-row"><span class="demo-label">next?</span><div class="demo-bars"></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+<section class="wrap world">
+  <h2>The toddler's whole world</h2>
+  <p>Everything it has ever heard: three sentences, 24 words. The <span class="key feel">feelings</span> and <span class="key thing">what it wants</span> are the clues it has to learn to connect.</p>
+  <div class="sentences">$sentences</div>
+</section>
+<section class="wrap roadmap">
+  <h2>Ten steps, from text to ChatGPT</h2>
+  <p>Each step answers one question. The questions inside the lessons are interactive, and your progress is saved in this browser.</p>
+  <div class="cards">$cards</div>
+</section>
+$footer
+<script type="application/json" id="demo-data">$demo</script>
+<script src="assets/app.js"></script>
+</body>
+</html>

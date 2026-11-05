@@ -24,12 +24,23 @@ Any other Python fails with a "... missing: this notebook runs on the wrong Pyth
 - Stuck? `solution("1.2")` shows the worked answer.
 - Change things and re-run: every notebook is meant to be played with.
 
+## Reading website
+
+The same lessons as a website, without code but with interactive questions (progress is saved in the browser):
+
+    .venv/bin/python website/build.py --serve
+
+Then open http://localhost:8000. Without `--serve`, it only builds the site into `_site/`: open `_site/index.html`
+directly, or copy that folder to any web server. The notebooks feed the site through a few invisible markers,
+described at the top of `website/build.py`.
+
 ## Layout
 
 - `notebooks/`: one notebook per step (`00_big_picture.ipynb`, `01_tokenization_bpe.ipynb`, ...)
 - `notebooks/figures/`: the figures used in the notebooks, drawn by `make_figures.py`
 - `toddler/`: the model's code, growing one step at a time; later notebooks import it
 - `toddler/exercises.py`: the checks behind `check()` and `solution()`
+- `website/`: the website builder, its page templates and assets
 
 ## Steps
 
