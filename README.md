@@ -47,10 +47,13 @@ described at the top of `website/build.py`.
 0. Big picture: next-token guessing and a counting model
 1. Tokenization (BPE)
 2. Embeddings
-3. Positions
-4. Attention
-5. Transformer block
-6. Output and softmax
-7. Training
-8. Generation
-9. From toddler to ChatGPT
+3. Learning: scores, softmax, loss, backpropagation, training from random numbers
+4. Positions
+5. Attention
+6. Transformer block
+7. Generation
+8. From toddler to ChatGPT
+
+From Step 3 on, every step trains the toddler from random numbers (or from hand-written hint rows) and shows
+the numbers converge. Each notebook ends with a playground: write your own toddler world (up to 10 lines) and
+run it again.
