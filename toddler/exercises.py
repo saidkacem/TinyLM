@@ -71,3 +71,47 @@ _add(
     "P(am | I) × P(want | I) × P(matching thing | want) = 1/2 × 1/2 × 1/3 = 1/12 ≈ 0.083. "
     "Every other guess is 100% sure.",
 )
+
+
+@lru_cache(maxsize=None)
+def _tokenizer(max_merges=None):
+    from .bpe import BPETokenizer
+
+    return BPETokenizer.train(CORPUS, max_merges)
+
+
+# Step 1
+_add(
+    "1.1",
+    lambda a: list(a) == _tokenizer().encode("I want bed ."),
+    "Each word is one token here: look up _I, _want, _bed and _. in the vocabulary.",
+    "[21, 28, 52, 22] = _I _want _bed _.",
+)
+_add(
+    "1.2",
+    lambda a: list(a) == _tokenizer().encode_word("_wand"),
+    "Go down the merge list in order. Merge #8 needs `_wan t`: is there a t?",
+    "_ w a n d → #5 → _w a n d → #6 → _wa n d → #7 → _wan d. Merge #8 needs `_wan t`: not found. "
+    "Result: ['_wan', 'd'] (IDs 27, 17).",
+)
+_add(
+    "1.3",
+    lambda a: list(a) == _tokenizer().encode_word("_tamed"),
+    "The merge list glues `_ a` (an a at a word start) and then `_a m`, never a plain `a m`. "
+    "Which merges can fire on `_ t a m e d`?",
+    "_ t a m e d → #10 (e d) → _ t a m ed → #27 (_ t) → _t a m ed. `a m` never glues: the list only has `_a` + `m`. "
+    "Result: ['_t', 'a', 'm', 'ed'] (IDs 47, 2, 3, 30).",
+)
+_add(
+    "1.4",
+    lambda a: a.strip() == _tokenizer().decode([21, 24, 44, 22]),
+    "Look up each ID, glue the pieces, turn _ into spaces, drop the first space.",
+    "21 24 44 22 → _I _am _mom _. → 'I am mom .'",
+)
+_add(
+    "1.5",
+    lambda a: int(a) == len(_tokenizer(10).tokenize("I am hungry .")),
+    "With 10 merges, _I, _am and _. are whole. Are the merges that build _hungry among the first 10?",
+    "10 tokens: _I _am _ h u n g r y _. The merges that build _hungry (#11 to #16) are missing, "
+    "so 'hungry' stays in 7 pieces.",
+)
