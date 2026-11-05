@@ -15,6 +15,7 @@ sys.path.insert(0, str(HERE.parents[1]))
 from toddler.bpe import BPETokenizer  # noqa: E402
 from toddler.data import CORPUS  # noqa: E402
 from toddler.embeddings import COLUMNS, toddler_table  # noqa: E402
+from toddler.positions import POSITION_COLUMNS, position_vector  # noqa: E402
 
 MONO = "DejaVu Sans Mono"
 INK = "#1f2937"
@@ -70,6 +71,22 @@ def cell_colors(value):
     if value == 0:
         return "#eff6ff", "#93c5fd"
     return "#f3f4f6", MUTED
+
+
+def signed_colors(value):
+    """(fill, text color): blue for positive, orange for negative, pale for 0."""
+    if abs(value) < 1e-9:
+        return "#f8fafc", "#cbd5e1"
+    base = (37, 99, 235) if value > 0 else (234, 88, 12)
+    strength = 0.3 + 0.7 * min(abs(value), 1)
+    fill = tuple((255 - (255 - c) * strength) / 255 for c in base)
+    return fill, "white" if abs(value) > 0.8 else INK
+
+
+def number(value):
+    if abs(value) < 1e-9:
+        return "0"
+    return f"{value:.2f}".rstrip("0").rstrip(".").replace("-", "−")
 
 
 def save(fig, name):
@@ -297,6 +314,89 @@ def similarity():
     save(fig, "02_similarity.png")
 
 
+def position_clock():
+    tokens = [TOK.vocab[i] for i in TOK.encode(CORPUS[0])]
+    fig, ax = plt.subplots(figsize=(7, 7))
+    ax.set_xlim(-2.5, 2.5)
+    ax.set_ylim(-2.6, 2.4)
+    ax.set_aspect("equal")
+    ax.axis("off")
+    ax.plot([-1.3, 1.3], [0, 0], color="#e5e7eb", lw=1, zorder=0)
+    ax.plot([0, 0], [-1.3, 1.3], color="#e5e7eb", lw=1, zorder=0)
+    text(ax, 1.0, -0.17, "px", size=10, color=MUTED)
+    text(ax, -0.18, 1.0, "py", size=10, color=MUTED)
+    ax.add_patch(Circle((0, 0), 1.3, fill=False, edgecolor="#d1d5db", lw=2))
+    for position, token in enumerate(tokens, start=1):
+        x, y = position_vector(position)
+        is_i = token == "_I"
+        if is_i:
+            arrow(ax, (0, 0), (1.22 * x, 1.22 * y), color="#dc2626", lw=2.6, head=18)
+        ax.add_patch(Circle((1.3 * x, 1.3 * y), 0.07, color="#dc2626" if is_i else "#7c3aed", zorder=3))
+        label = f"#{position} {token}"
+        chip(ax, 1.85 * x, 1.85 * y, label, 0.2 + 0.075 * len(label), h=0.34,
+             color="red" if is_i else "violet", size=10.5, bold=is_i)
+    ax.add_patch(Circle((0, 0), 0.06, color=INK, zorder=4))
+    text(ax, 0, -2.45, "the hand turns 45° per position: the two _I point in opposite directions",
+         size=10, color="#dc2626")
+    save(fig, "03_position_clock.png")
+
+
+def adding_positions():
+    columns = COLUMNS + POSITION_COLUMNS
+    fig, ax = canvas(13.4, 6.9, bottom=0.7)
+    x0, width, height = 3.3, 0.8, 0.5
+    xs = [x0 + width * i + (0.3 if i >= 8 else 0) for i in range(10)]
+    for x, name in zip(xs, columns):
+        text(ax, x + width / 2, 6.0, name, size=10, color=MUTED)
+    text(ax, xs[0] + 4 * width, 6.5, "meaning (8 numbers)", size=10.5, bold=True, color="#2563eb")
+    text(ax, xs[8] + width, 6.5, "position (2)", size=10.5, bold=True, color="#ea580c")
+    meaning = TABLE[TOK.token_to_id["_I"]]
+    for block, position in enumerate([1, 5]):
+        top = 5.3 - 2.7 * block
+        hand = position_vector(position)
+        rows = [("_I", np.append(meaning, [0, 0])), (f"+ position #{position}", np.append(np.zeros(8), hand)),
+                ("= input", np.append(meaning, hand))]
+        for r, (label, values) in enumerate(rows):
+            y = top - 0.62 * r
+            text(ax, x0 - 0.25, y, label, size=11.5, mono=True, ha="right", bold=r == 2)
+            for x, value in zip(xs, values):
+                fill, ink = signed_colors(value)
+                ax.add_patch(Rectangle((x + 0.03, y - height / 2), width - 0.06, height, facecolor=fill, edgecolor="none"))
+                text(ax, x + width / 2, y, number(value), size=10.5, color=ink)
+        y = top - 1.24
+        ax.add_patch(Rectangle((xs[0] - 0.06, y - 0.33), xs[-1] + width - xs[0] + 0.12, 0.66, fill=False,
+                               edgecolor="#dc2626", lw=2))
+        center = (xs[-1] + width + 1.0, top - 0.62)
+        ax.add_patch(Circle(center, 0.5, fill=False, edgecolor="#d1d5db", lw=1.5))
+        arrow(ax, center, (center[0] + 0.42 * hand[0], center[1] + 0.42 * hand[1]), color="#dc2626", lw=2.2)
+        text(ax, center[0], center[1] - 0.75, f"hand #{position}", size=10, color=MUTED)
+    save(fig, "03_adding_positions.png")
+
+
+def two_hands():
+    fig, axes = plt.subplots(1, 2, figsize=(10.5, 5.6))
+    clocks = [("fast hand: 45° per step", 45, "#9 points exactly like #1"),
+              ("slow hand: 5.6° per step", 45 / 8, "#9 is far from #1, but #2 is almost #1")]
+    for ax, (title, step, note) in zip(axes, clocks):
+        ax.set_xlim(-1.9, 1.9)
+        ax.set_ylim(-1.9, 1.9)
+        ax.set_aspect("equal")
+        ax.axis("off")
+        ax.add_patch(Circle((0, 0), 1.2, fill=False, edgecolor="#d1d5db", lw=2))
+        text(ax, 0, 1.72, title, size=13, bold=True)
+        text(ax, 0, -1.68, note, size=10.5, color=MUTED)
+        for position, color in [(9, "#dc2626"), (2, "#16a34a"), (1, "#2563eb")]:
+            x, y = position_vector(position, step)
+            arrow(ax, (0, 0), (1.1 * x, 1.1 * y), color=color, lw=2.6, head=16)
+        tips = {}
+        for position in (1, 2, 9):
+            tips.setdefault(tuple(position_vector(position, step).round(3)), []).append(f"#{position}")
+        for (x, y), labels in tips.items():
+            text(ax, 1.42 * x, 1.42 * y + (0.12 if y >= 0 else -0.12), " = ".join(labels), size=11, bold=True)
+        ax.add_patch(Circle((0, 0), 0.05, color=INK, zorder=4))
+    save(fig, "03_two_hands.png")
+
+
 if __name__ == "__main__":
     pipeline()
     training_loop()
@@ -304,3 +404,6 @@ if __name__ == "__main__":
     bpe_merge_tree()
     embedding_lookup()
     similarity()
+    position_clock()
+    adding_positions()
+    two_hands()

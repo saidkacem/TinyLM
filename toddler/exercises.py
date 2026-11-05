@@ -177,3 +177,60 @@ _add(
     "\nfor token in ['_milk', '_mommy', '_bed']:\n    table9[tok.token_to_id[token], 8] = 1\n"
     "Now milk·mommy = milk·bed = mommy·bed = 1, and every other dot product stays the same.",
 )
+
+
+def _position(position):
+    from .positions import position_vector
+
+    return position_vector(position)
+
+
+def _same_vector(answer, expected, tolerance=0.02):
+    answer = np.asarray(answer, dtype=float).ravel()
+    expected = np.asarray(expected, dtype=float).ravel()
+    return answer.shape == expected.shape and bool(np.allclose(answer, expected, atol=tolerance))
+
+
+def _check_position_function(my_position_vector):
+    for position in range(1, 9):
+        result = my_position_vector(position)
+        if result is None:
+            return None
+        if not _same_vector(result, _position(position), tolerance=0.01):
+            return False
+    return True
+
+
+# Step 3
+_add(
+    "3.1",
+    lambda a: _same_vector(a, _position(7)),
+    "Position 7 turns the hand by (7 - 1) × 45° = 270°. Where does a hand point at 270°?",
+    "270° points straight down: (px, py) = (0, -1).",
+)
+_add(
+    "3.2",
+    lambda a: _same_vector(a, np.append(_clean_row("_want"), _position(6))),
+    "Take the 8 meaning numbers of _want, then the 2 numbers of position 6 (225°).",
+    "_want = 0 0 1 0 0 0 0 0 and position 6 (225°) = (-0.71, -0.71). "
+    "Together: 0 0 1 0 0 0 0 0 -0.71 -0.71.",
+)
+_add(
+    "3.3",
+    lambda a: np.ndim(a) == 0 and _close(a, _position(2) @ _position(4), tolerance=0.02),
+    "px × px + py × py, with position 2 = (0.71, 0.71) and position 4 = (-0.71, 0.71).",
+    "0.71 × (-0.71) + 0.71 × 0.71 = -0.5 + 0.5 = 0. They are 2 steps (90°) apart, like positions 1 and 3.",
+)
+_add(
+    "3.4",
+    _check_position_function,
+    "angle = math.radians((position - 1) * 45), then return [math.cos(angle), math.sin(angle)].",
+    "\nimport math\n\ndef my_position_vector(position):\n    angle = math.radians((position - 1) * 45)\n"
+    "    return [math.cos(angle), math.sin(angle)]",
+)
+_add(
+    "3.5",
+    lambda a: int(a) == 9,
+    "After how many steps of 45° does the hand come back to where it started?",
+    "Position 9: (9 - 1) × 45° = 360°, a full turn, so the hand points exactly like position 1.",
+)
