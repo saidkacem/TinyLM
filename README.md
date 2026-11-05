@@ -11,8 +11,11 @@ The toddler's whole world is three sentences:
 
     python3 -m venv .venv
     .venv/bin/pip install -r requirements.txt
+    .venv/bin/nbstripout --install    # keeps notebook outputs out of git commits
 
-Open this folder in VS Code, open a notebook from `notebooks/`, and select the `.venv` kernel (top right).
+Open this folder in VS Code and open a notebook from `notebooks/`. At the top right, the kernel must be **.venv**
+(click the kernel name, then Select Another Kernel > Python Environments > .venv).
+Any other Python fails with "numpy is missing".
 
 ## How to practice
 
@@ -24,6 +27,7 @@ Open this folder in VS Code, open a notebook from `notebooks/`, and select the `
 ## Layout
 
 - `notebooks/`: one notebook per step (`00_big_picture.ipynb`, `01_tokenization_bpe.ipynb`, ...)
+- `notebooks/figures/`: the figures used in the notebooks, drawn by `make_figures.py`
 - `toddler/`: the model's code, growing one step at a time; later notebooks import it
 - `toddler/exercises.py`: the checks behind `check()` and `solution()`
 
