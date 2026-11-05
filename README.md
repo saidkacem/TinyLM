@@ -15,7 +15,7 @@ The toddler's whole world is three sentences:
 
 Open this folder in VS Code and open a notebook from `notebooks/`. At the top right, the kernel must be **.venv**
 (click the kernel name, then Select Another Kernel > Python Environments > .venv).
-Any other Python fails with "numpy is missing".
+Any other Python fails with a "... missing: this notebook runs on the wrong Python" message.
 
 ## How to practice
 
