@@ -1,0 +1,12 @@
+# GitLab Pages publishes the public/ folder made by the job named "pages"
+pages:
+  stage: deploy
+  image: python:3.12-slim
+  script:
+    - pip install -r requirements.txt
+    - python website/build.py --out public
+  artifacts:
+    paths:
+      - public
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
