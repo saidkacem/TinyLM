@@ -1,10 +1,14 @@
 # GitLab Pages publishes the public/ folder made by the job named "pages"
 pages:
+  tags: 
+    - rswl
   stage: deploy
-  image: python:3.12-slim
+  image: artifactory.tls.renault.fr/docker-icore/swlabs/docker/python/base:3.10
   script:
-    - pip install -r requirements.txt
-    - python website/build.py --out public
+    # a venv keeps the packages off the runner's own Python if it is a shell runner
+    - python3 -m venv .venv
+    - .venv/bin/pip install -r requirements.txt
+    - .venv/bin/python website/build.py --out public
   artifacts:
     paths:
       - public
