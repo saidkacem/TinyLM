@@ -13,7 +13,7 @@ def column(name):
 
 
 def hint_attention():
-    """Our hand-set head: _want asks "where is a feeling?", and takes that feeling's topic."""
+    """Our hand-set head: _want asks "who is a feeling?", and takes that feeling's topic."""
     query, key, value = (np.zeros((len(STREAM), HEAD_SIZE)) for _ in range(3))
     out = np.zeros((HEAD_SIZE, len(STREAM)))
     query[column("want"), 0] = 6
@@ -30,9 +30,9 @@ def softmax_rows(scores):
 
 
 def attention(inputs, Wq, Wk, Wv, Wo):
-    """One head of attention. Returns what it adds to each token's vector, and the attention weights."""
-    queries, keys, values = inputs @ Wq, inputs @ Wk, inputs @ Wv
-    scores = queries @ keys.T / np.sqrt(Wq.shape[1])
+    """One head of attention. Returns what it adds to each token's vector (mix · Wo), and the weights."""
+    queries, keys, values = inputs @ Wq, inputs @ Wk, inputs @ Wv  # Q, K, V: one row per token
+    scores = queries @ keys.T / np.sqrt(Wq.shape[1])  # Q · Kᵀ ÷ √(key size): one row per token asking
     scores[np.triu(np.ones(scores.shape, dtype=bool), k=1)] = -np.inf  # a token never sees the tokens after it
     weights = softmax_rows(scores)
     return weights @ values @ Wo, weights

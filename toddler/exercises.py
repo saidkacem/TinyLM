@@ -264,8 +264,8 @@ _add(
 _add(
     "4.2",
     lambda a: str(a).strip().lower().lstrip("_") == "hug",
-    "_want finds the feeling _sad. Which slot is _sad's value in, and where does the output table put that slot?",
-    "_sad's value is (0, 1, 0, 0): slot 2, which goes to the hug column. _want gets +0.99 hug.",
+    "_want finds the feeling _sad. Which slot is _sad's value in, and where does Wo put that slot?",
+    "_sad's value is (0, 1, 0, 0): slot s2, which Wo puts in the hug column. _want gets +0.99 hug.",
 )
 _add(
     "4.3",

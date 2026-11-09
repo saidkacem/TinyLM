@@ -90,6 +90,11 @@ def number(value):
     return f"{value:.2f}".rstrip("0").rstrip(".").replace("-", "−")
 
 
+def percent(share):
+    """Like the notebook text: 98.8%, 33.3%, 50%, and 2 decimals below 1% (0.24%)."""
+    return f"{share:.2%}" if share < 0.01 else f"{share:.1%}".replace(".0%", "%")
+
+
 def save(fig, name):
     fig.savefig(HERE / name, dpi=160, facecolor="white", bbox_inches="tight", pad_inches=0.2)
     plt.close(fig)
@@ -432,30 +437,106 @@ def sentence_attention():
     return ids, added, weights
 
 
+def number_grid(ax, x, top, matrix, row_labels, col_labels, title, red_row=None, cell=0.62, height=0.5):
+    """A matrix as colored cells with their numbers: column names above, row names on the left."""
+    text(ax, x + matrix.shape[1] * cell / 2, top + 0.95, title, size=12.5, bold=True)
+    for j, name in enumerate(col_labels):
+        text(ax, x + (j + 0.5) * cell, top + 0.3, name, size=9, color=MUTED, mono=True)
+    for i, values in enumerate(matrix):
+        y = top - (i + 0.5) * height
+        if row_labels:
+            text(ax, x - 0.15, y, row_labels[i], size=9.5, mono=True, ha="right", bold=i == red_row,
+                 color="#dc2626" if i == red_row else INK)
+        for j, value in enumerate(values):
+            fill, ink = signed_colors(value)
+            ax.add_patch(Rectangle((x + j * cell + 0.03, y - height / 2 + 0.03), cell - 0.06, height - 0.06,
+                                   facecolor=fill, edgecolor="none"))
+            text(ax, x + (j + 0.5) * cell, y, number(value), size=9.5, color=ink)
+
+
+def matrix_product(name, left, right, result, row, column, caption, cell=0.62, height=0.5):
+    """left · right = result, as grids. left and right are (title, matrix, row names, column names), result is
+    (title, matrix, column names). Row `row` of left and column `column` of right make the framed number of result."""
+    (a_title, a, a_rows, a_cols), (b_title, b, b_rows, b_cols), (c_title, c, c_cols) = left, right, result
+    top = 1.1 + max(len(a), len(b)) * height
+    x_a = 1.7
+    x_dot = x_a + a.shape[1] * cell + 0.5
+    x_b = x_dot + 1.4
+    x_eq = x_b + b.shape[1] * cell + 0.5
+    x_c = x_eq + 0.5
+    fig, ax = canvas(x_c + c.shape[1] * cell + 0.3, top + 1.4)
+    number_grid(ax, x_a, top, a, a_rows, a_cols, a_title, red_row=row, cell=cell, height=height)
+    number_grid(ax, x_b, top, b, b_rows, b_cols, b_title, cell=cell, height=height)
+    number_grid(ax, x_c, top, c, None, c_cols, c_title, cell=cell, height=height)
+    middle = top - len(a) * height / 2
+    ax.add_patch(Circle((x_dot, middle), 0.08, color=INK))
+    text(ax, x_eq, middle, "=", size=22, bold=True)
+    frames = [(x_a, top - (row + 1) * height, a.shape[1] * cell, height, 2.2),
+              (x_b + column * cell, top - len(b) * height, cell, len(b) * height, 2.2),
+              (x_c + column * cell, top - (row + 1) * height, cell, height, 3.2)]
+    for x, y, w, h, lw in frames:
+        ax.add_patch(Rectangle((x, y), w, h, fill=False, edgecolor="#dc2626", lw=lw))
+    text(ax, 0.2, 0.5, caption, size=11.5, bold=True, color="#dc2626", ha="left")
+    save(fig, name)
+
+
+def attention_inputs():
+    ids = TOK.encode(CORPUS[0])
+    return with_positions(TABLE[ids]), [f"#{p} {TOK.vocab[i]}" for p, i in enumerate(ids, start=1)]
+
+
+def x_times_wq():
+    inputs, labels = attention_inputs()
+    stream, Wq = COLUMNS + POSITION_COLUMNS, hint_attention()["Wq"]
+    slots = [f"s{s}" for s in range(1, Wq.shape[1] + 1)]
+    matrix_product("04_x_times_wq.png", ("X  (8 × 10)", inputs, labels, stream), ("Wq  (10 × 4)", Wq, stream, slots),
+                   ("Q  (8 × 4)", inputs @ Wq, slots), row=5, column=0,
+                   caption="row 6 of X · column s1 of Wq = 1 × 6 = 6: slot s1 of the query of _want")
+
+
+def q_times_kt():
+    inputs, labels = attention_inputs()
+    head = hint_attention()
+    queries, keys = inputs @ head["Wq"], inputs @ head["Wk"]
+    slots, numbers = [f"s{s}" for s in range(1, queries.shape[1] + 1)], [f"#{p}" for p in range(1, len(labels) + 1)]
+    matrix_product("04_q_times_kt.png", ("Q  (8 × 4)", queries, labels, slots), ("Kᵀ  (4 × 8)", keys.T, slots, numbers),
+                   ("Q · Kᵀ  (8 × 8)", queries @ keys.T, numbers), row=5, column=2,
+                   caption="row 6 of Q · column 3 of Kᵀ = 6 × 2 = 12: the question of _want meets the label of _hungry")
+
+
 def want_looks_back():
     ids, _, weights = sentence_attention()
-    tokens = [TOK.vocab[i] for i in ids[:6]]
-    keys = ["2" if t == "_hungry" else "0" for t in tokens]
-    values = ["food" if t == "_hungry" else "0" for t in tokens]
-    fig, ax = canvas(13.2, 6.6, bottom=0.4)
-    xs = [1.2 + 2.1 * k for k in range(6)]
-    for x, token, key, value, weight in zip(xs, tokens, keys, values, weights[5, :6]):
-        strong = weight > 0.5
-        asker = token == "_want"
-        chip(ax, x, 3.2, token, 1.5, h=0.55, color="red" if asker else "violet" if strong else "gray", size=12,
-             bold=strong or asker)
-        text(ax, x, 2.45, f"key {key}", size=10.5, mono=True, color=INK if strong else MUTED)
-        text(ax, x, 2.0, f"value {value}", size=10.5, mono=True, color=INK if strong else MUTED)
-        if not asker:
-            arrow(ax, (xs[5] - 0.2, 3.55), (x, 3.55), color="#7c3aed" if strong else "#c4b5fd", lw=3 if strong else 1,
-                  rad=0.35, head=16 if strong else 8)
-        label = f"{weight:.1%}"
-        text(ax, x, 1.4, label, size=13 if strong else 10.5, bold=strong, color="#7c3aed" if strong else MUTED)
-    text(ax, xs[5], 4.05, "query 6", size=10.5, mono=True, color="#dc2626")
-    text(ax, 0.3, 6.0, '_want asks "where is a feeling?"  Only _hungry has a matching key, so it gets almost all the attention',
-         size=11.5, bold=True, ha="left")
-    text(ax, 0.3, 0.75, "mix of the values: 0.988 × food  →  _want's vector gets +0.99 in its food column",
-         size=11.5, color="#7c3aed", ha="left", bold=True)
+    inputs, head = with_positions(TABLE[ids]), hint_attention()
+    queries, keys, values = (inputs @ head[name] for name in ("Wq", "Wk", "Wv"))
+    scores = queries @ keys.T / np.sqrt(queries.shape[1])
+    tokens = [TOK.vocab[i] for i in ids]
+    asker = tokens.index("_want")
+
+    def vector(v):
+        return "(" + ",".join(number(x) for x in v) + ")"
+
+    fig, ax = canvas(16.9, 7.0, bottom=0.4)
+    xs = [1.15 + 2.08 * k for k in range(len(tokens))]
+    for k, (x, token) in enumerate(zip(xs, tokens)):
+        hidden, strong, is_asker = k > asker, weights[asker, k] > 0.5, k == asker
+        chip(ax, x, 3.6, f"#{k + 1} {token}", 1.8, h=0.55, color="red" if is_asker else "violet" if strong else "gray",
+             size=11.5, bold=strong or is_asker)
+        ink = INK if strong else MUTED
+        text(ax, x, 2.9, f"key {vector(keys[k])}", size=9.5, mono=True, color=ink)
+        text(ax, x, 2.5, f"value {vector(values[k])}", size=9.5, mono=True, color=ink)
+        score = "score −∞" if hidden else f"score {number(scores[asker, k])}"
+        text(ax, x, 2.0, score, size=10.5, color=ink, bold=strong)
+        text(ax, x, 1.4, "0%: hidden" if hidden else percent(weights[asker, k]), size=13 if strong else 10.5,
+             bold=strong, color="#7c3aed" if strong else MUTED)
+        if k < asker:
+            arrow(ax, (xs[asker] - 0.2, 3.95), (x, 3.95), color="#7c3aed" if strong else "#c4b5fd",
+                  lw=3 if strong else 1, rad=0.35, head=16 if strong else 8)
+    text(ax, xs[asker] - 0.35, 4.35, f"query {vector(queries[asker])}", size=10.5, mono=True, color="#dc2626",
+         ha="left")
+    text(ax, 0.3, 6.5, '_want asks "who is a feeling?"  Only _hungry has a matching key, so it gets almost all the '
+         'attention', size=11.5, bold=True, ha="left")
+    text(ax, 0.3, 0.75, f"mix = {weights[asker, 2]:.4f} × the value of _hungry = ({weights[asker, 2]:.4f},0,0,0)  →  "
+         "Wo puts slot s1 in the food column: _want gets +0.99 food", size=11.5, color="#7c3aed", ha="left", bold=True)
     save(fig, "04_want_looks_back.png")
 
 
@@ -472,14 +553,14 @@ def attention_pattern():
     for i in range(len(labels)):
         for j in range(len(labels)):
             if j > i:
-                ax.text(j, i, "×", ha="center", va="center", fontsize=10, color="#cbd5e1")
+                ax.text(j, i, "✗", ha="center", va="center", fontsize=10, color="#cbd5e1")
             else:
                 value = weights[i, j]
-                ax.text(j, i, f"{value:.0%}" if value >= 0.01 else f"{value:.1%}", ha="center", va="center",
-                        fontsize=9, color="white" if value > 0.6 else INK, weight="bold" if value > 0.6 else "normal")
-    ax.set_xlabel("looks at this token", fontsize=11)
-    ax.set_ylabel("this token", fontsize=11)
-    ax.set_title("attention weights (× = the future, hidden)", fontsize=12)
+                ax.text(j, i, percent(value), ha="center", va="center", fontsize=9,
+                        color="white" if value > 0.6 else INK, weight="bold" if value > 0.6 else "normal")
+    ax.set_xlabel("the token looked at (its key)", fontsize=11)
+    ax.set_ylabel("the token asking (its query)", fontsize=11)
+    ax.set_title("the weights: softmax of each row (✗ = the future, hidden)", fontsize=12)
     save(fig, "04_attention_pattern.png")
 
 
@@ -494,5 +575,7 @@ if __name__ == "__main__":
     adding_positions()
     two_hands()
     training_together()
+    x_times_wq()
+    q_times_kt()
     want_looks_back()
     attention_pattern()
